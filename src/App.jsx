@@ -170,7 +170,7 @@ export default function App() {
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/scan?email=${encodeURIComponent(email)}`
+        `https://breach-scanner-backend.onrender.com/api/scan?email=${encodeURIComponent(email)}`
       );
       const data = await response.json();
       console.log("Server response:", data);
