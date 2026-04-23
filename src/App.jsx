@@ -175,9 +175,12 @@ export default function App() {
       const data = await response.json();
       console.log("Server response:", data);
 
-      if (data.breached && data.breaches) {
-        breaches = data.breaches;
-      }
+      //if (data.breached && data.breaches) {
+        //breaches = data.breaches;
+      //}
+      if (data.breaches && data.breaches.length > 0) {
+  breaches = data.breaches;
+}
 
     } catch (err) {
       console.log("Error:", err);

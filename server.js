@@ -1,4 +1,4 @@
-import express from 'express';
+/*import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
@@ -50,7 +50,8 @@ app.get('/api/scan', async (req, res) => {
             : ["Email addresses"]
       }));
 
-      */
+      
+
      if (response.status === 404) {
   return res.json({ breaches: [] });
 }
@@ -109,4 +110,53 @@ res.json({ breaches });
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
+});*/
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+
+app.get('/api/scan', async (req, res) => {
+  const email = req.query.email;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.xposedornot.com/v1/check-email/${encodeURIComponent(email)}`,
+      { headers: { 'User-Agent': 'BreachScanner/1.0' } }
+    );
+
+    if (response.status === 404) {
+      return res.json({ breached: false, breaches: [] });
+    }
+
+    const data = await response.json();
+    console.log("Raw API response:", JSON.stringify(data).slice(0, 300));
+
+    let breaches = [];
+
+    if (data?.breaches?.[0] && Array.isArray(data.breaches[0])) {
+      breaches = data.breaches[0].map(name => ({
+        Name: name,
+        BreachDate: "2020-01-01",
+        DataClasses: ["Email addresses"]
+      }));
+    }
+
+    return res.json({ breached: breaches.length > 0, breaches });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ error: "Failed to fetch", breached: false, breaches: [] });
+  }
 });
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
