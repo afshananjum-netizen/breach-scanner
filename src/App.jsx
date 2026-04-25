@@ -86,7 +86,7 @@ function AIAdvicePanel({ breaches }) {
   const [advice, setAdvice] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  async function getAdvice() {
+ /* async function getAdvice() {
     setLoading(true);
     setAdvice(null);
     const breachSummary = breaches.map(b =>
@@ -114,7 +114,83 @@ function AIAdvicePanel({ breaches }) {
       setAdvice("Failed to load. Please try again.");
     }
     setLoading(false);
+  }*/
+ async function getAdvice() {
+  setLoading(true);
+  setAdvice(null);
+
+  // Smart hardcoded advice based on actual breaches
+  function getSmartAdvice(breaches) {
+    const allDataTypes = breaches.flatMap(b => b.DataClasses);
+    const hasPassword = allDataTypes.some(d => d.includes("Password") || d.includes("password"));
+    const hasEmail = allDataTypes.some(d => d.includes("Email"));
+    const hasPhone = allDataTypes.some(d => d.includes("Phone"));
+    const hasCard = allDataTypes.some(d => d.includes("Credit") || d.includes("Bank"));
+
+    const breachNames = breaches.map(b => b.Name).join(", ");
+
+    let step1, step2, step3;
+
+    if (hasPassword) {
+      step1 = `STEP 1: CHANGE YOUR PASSWORDS IMMEDIATELY\nYour passwords were leaked in ${breachNames}. Change passwords for all affected accounts right now. Use a unique password for every account — never reuse passwords across sites.`;
+    } else {
+      step1 = `STEP 1: REVIEW YOUR AFFECTED ACCOUNTS\nYour data was found in ${breachNames}. Log into each affected account and review recent activity for anything suspicious or unauthorized.`;
+    }
+
+    if (hasCard) {
+      step2 = `STEP 2: CONTACT YOUR BANK IMMEDIATELY\nYour credit card or bank details were exposed. Call your bank right now to freeze your card and request a new one. Check your recent transactions for any unauthorized charges.`;
+    } else {
+      step2 = `STEP 2: ENABLE TWO-FACTOR AUTHENTICATION\nAdd an extra layer of security to all your accounts especially email, banking and social media. Even if someone has your password they cannot login without your phone.`;
+    }
+
+    if (hasEmail) {
+      step3 = `STEP 3: WATCH OUT FOR PHISHING EMAILS\nYour email was exposed in these breaches. Hackers will use it to send fake emails pretending to be your bank or Google. Never click suspicious links and verify senders carefully.`;
+    } else if (hasPhone) {
+      step3 = `STEP 3: BEWARE OF SCAM CALLS AND SMS\nYour phone number was leaked. You may receive scam calls or fake OTP messages. Never share OTPs with anyone and ignore calls asking for personal information.`;
+    } else {
+      step3 = `STEP 3: SET UP BREACH MONITORING\nSign up for free breach alerts at xposedornot.com so you are notified immediately if your email appears in future breaches. Early detection is key to preventing identity theft.`;
+    }
+
+    return `${step1}\n\n${step2}\n\n${step3}`;
   }
+
+  // Try Gemini AI first
+  const breachSummary = breaches.map(b =>
+    `${b.Name} (${b.BreachDate.slice(0, 4)}): leaked ${b.DataClasses.join(", ")}`
+  ).join("\n");
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are a cybersecurity expert. The user's email was found in these breaches:\n\n${breachSummary}\n\nGive EXACTLY 3 steps to fix their digital footprint. Format:\n\nSTEP X: [TITLE]\n[2-3 sentence explanation]\n\nBe specific to their leaks. No intro text.`
+            }]
+          }]
+        })
+      }
+    );
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (text) {
+      // AI worked!
+      setAdvice(text);
+    } else {
+      // AI returned empty — use smart backup
+      setAdvice(getSmartAdvice(breaches));
+    }
+  } catch {
+    // AI failed — use smart backup instantly
+    setAdvice(getSmartAdvice(breaches));
+  }
+
+  setLoading(false);
+}
 
   return (
     <div style={{ marginTop: 24 }}>
